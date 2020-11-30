@@ -1,0 +1,23 @@
+pipeline {
+  agent {label 'merlin'}
+  stages {
+    stage ("check-commit") {
+      steps {
+        sh "[ `git rev-list --left-right --count remotes/origin/release..remotes/origin/${env.BRANCH_NAME} | cut -f1` -eq 0 ]"
+      }
+    }
+    stage ("build-local") {
+      steps {
+        sh "rm -rf release"
+        sh "mkdir release"
+        script { 
+          dir("release"){
+            sh "cmake3 -DCMAKE_BUILD_TYPE=Release -DDEPLOYMENT_DST=local .."
+            sh "make -j 8"
+            sh "ctest --verbose"
+          }
+        }
+      }    
+    }  
+  }
+}

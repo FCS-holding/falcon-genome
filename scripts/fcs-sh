@@ -1,0 +1,55 @@
+#!/bin/bash
+SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+# Get the input command
+while [[ $# -gt 0 ]];do
+  key="$1"
+  case $key in
+  -q|--queue)
+    queue="$2"
+    shift # past argument
+    ;;
+  *)
+    cmd="$1"
+  esac
+  shift # past argument or value
+done
+
+if [ -z "$cmd" ]; then
+  echo "Missing command"
+  exit -1;
+fi
+
+trap 'kill $(jobs -p)' 1 2 3 15
+
+if [ -z "$queue" ]; then
+  output=`$SCRIPT_DIR/manager/client`
+else
+  output=`$SCRIPT_DIR/manager/client -q $queue`
+fi
+
+if [ $? -ne 0 ]; then
+  exit 1
+fi
+
+output_arr=($output)
+host=${output_arr[0]}
+pid=${output_arr[1]}
+
+# launch process
+if [ -e "$cmd" ]; then
+  ssh $host 'bash -s' < $cmd
+else
+  ssh $host $cmd
+fi
+ret=$?
+
+if [ -z "$queue" ]; then
+  $SCRIPT_DIR/manager/client $pid
+else
+  $SCRIPT_DIR/manager/client -q $queue $pid
+fi
+
+if [ $ret -ne 0 ]; then
+  exit $ret
+fi
